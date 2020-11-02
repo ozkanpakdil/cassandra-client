@@ -1,8 +1,14 @@
 package com.github.kindrat.cassandra.client.service;
 
-import com.datastax.driver.core.*;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
-import com.datastax.driver.core.querybuilder.Update;
+import com.datastax.oss.driver.api.core.CqlIdentifier;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.CqlSessionBuilder;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Statement;
+import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
+import com.datastax.oss.driver.api.querybuilder.update.Update;
 import com.github.kindrat.cassandra.client.exception.UrlSyntaxException;
 import com.github.kindrat.cassandra.client.ui.ConnectionData;
 import com.github.kindrat.cassandra.client.ui.DataObject;
@@ -12,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.data.cassandra.config.CassandraSessionFactoryBean;
+import org.springframework.data.cassandra.config.CqlSessionFactoryBean;
 import org.springframework.data.cassandra.core.CassandraAdminTemplate;
 import org.springframework.data.cassandra.core.cql.SessionCallback;
 import org.springframework.stereotype.Service;
@@ -19,12 +26,14 @@ import reactor.core.publisher.Mono;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.literal;
 import static com.github.nginate.commons.lang.NStrings.format;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.stream.Collectors.toSet;
@@ -61,22 +70,16 @@ public class CassandraClientAdapter {
                 throw new UrlSyntaxException("Invalid port : " + urlParts[1]);
             }
 
-            Cluster.Builder builder = Cluster.builder()
-                    .withoutJMXReporting()
-                    .addContactPoint(urlParts[0])
-                    .withPort(port);
+            var builder = CqlSession.builder()
+                    .addContactPoint(new InetSocketAddress(urlParts[0], port));
 
             if (StringUtils.isNoneBlank(connectionData.getUsername(), connectionData.getPassword())) {
-                builder.withCredentials(connectionData.getUsername(), connectionData.getPassword());
+                builder.withAuthCredentials(connectionData.getUsername(), connectionData.getPassword());
             }
 
-            Cluster cluster = builder.build();
-
-            CassandraSessionFactoryBean factory =
-                    beanFactory.getBean(CassandraSessionFactoryBean.class, cluster, connectionData.getKeyspace());
-            Field adminTemplateField = findField(CassandraSessionFactoryBean.class, "admin");
+            Field adminTemplateField = findField(CqlSessionFactoryBean.class, "admin");
             adminTemplateField.setAccessible(true);
-            CassandraAdminTemplate template = (CassandraAdminTemplate) getField(adminTemplateField, factory);
+            CassandraAdminTemplate template = (CassandraAdminTemplate) getField(adminTemplateField, builder.build());
             this.template.set(template);
             return template;
         });
@@ -106,28 +109,28 @@ public class CassandraClientAdapter {
             Stream<ColumnMetadata> primaryKey = metadata.getPrimaryKey().stream();
             Stream<ColumnMetadata> partitionKey = metadata.getPartitionKey().stream();
 
-            Set<String> keyNames = Stream.concat(primaryKey, partitionKey)
+            var keyNames = Stream.concat(primaryKey, partitionKey)
                     .map(ColumnMetadata::getName)
                     .collect(toSet());
 
             int column = event.getTablePosition().getColumn() - 1;
-            String updatedColumn = metadata.getColumns().get(column).getName();
+            var updatedColumn = metadata.getColumns().get(column).getName();
 
             if (keyNames.contains(updatedColumn)) {
                 log.warn("Can't update primary key : {}", updatedColumn);
             }
 
-            Update update = QueryBuilder.update(metadata);
-            update.with(QueryBuilder.set(updatedColumn, event.getNewValue()));
+            var update = QueryBuilder.update(updatedColumn)
+                    .setColumn(updatedColumn, literal(event.getNewValue()));
 
-            for (String columnName : keyNames) {
-                update.where(QueryBuilder.eq(columnName, event.getRowValue().get(columnName)));
+            for (CqlIdentifier columnName : keyNames) {
+                update.whereColumn(columnName).isEqualTo(literal(event.getRowValue().get(columnName.asInternal())));
             }
 
             log.info("Executing update : {}", update);
 
-            template.get().getCqlOperations().execute(update);
-            event.getRowValue().set(updatedColumn, event.getNewValue());
+            template.get().getCqlOperations().execute(update.toString());
+            event.getRowValue().set(updatedColumn.asInternal(), event.getNewValue());
             return null;
         });
     }

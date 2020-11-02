@@ -13,8 +13,6 @@ import org.springframework.boot.autoconfigure.data.cassandra.CassandraDataAutoCo
 import org.springframework.boot.autoconfigure.data.cassandra.CassandraReactiveDataAutoConfiguration;
 import org.springframework.context.annotation.Lazy;
 
-import javax.swing.*;
-
 @Lazy
 @SpringBootApplication(exclude = {CassandraAutoConfiguration.class, CassandraDataAutoConfiguration.class,
         CassandraReactiveDataAutoConfiguration.class})
@@ -28,7 +26,7 @@ public class CassandraClientGUI extends AbstractJavaFxApplicationSupport {
     }
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
         view.setPrimaryStage(primaryStage);
 
         primaryStage.setTitle("Cassandra client");

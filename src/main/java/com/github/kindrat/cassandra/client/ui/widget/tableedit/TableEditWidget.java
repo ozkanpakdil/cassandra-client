@@ -1,6 +1,7 @@
 package com.github.kindrat.cassandra.client.ui.widget.tableedit;
 
-import com.datastax.driver.core.DataType;
+import com.datastax.oss.driver.api.core.type.DataType;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodecs;
 import com.github.kindrat.cassandra.client.i18n.MessageByLocaleService;
 import com.github.kindrat.cassandra.client.properties.UIProperties;
 import com.github.kindrat.cassandra.client.ui.fx.CellValueFactory;
@@ -162,14 +163,14 @@ public class TableEditWidget extends Stage {
         rows.add(buildDefaultRow());
         TableView<TableRowEntry> view = new TableView<>(rows);
 
-        TableColumn<TableRowEntry, Object> nameColumn = buildColumn(DataType.text(), "Name");
+        TableColumn<TableRowEntry, Object> nameColumn = buildColumn(TypeCodecs.TEXT.getCqlType(), "Name");
         nameColumn.setCellValueFactory(CellValueFactory.create(TableRowEntry::getName));
         nameColumn.setOnEditCommit(event -> event.getRowValue().setName(event.getNewValue().toString()));
         bindTableColumnWidth(nameColumn, this, 0.3);
 
-        TableColumn<TableRowEntry, DataType.Name> typeColumn = buildColumn(DataType.Name.class, "Type");
+        TableColumn<TableRowEntry, Object> typeColumn = buildColumn(TypeCodecs.TEXT.getCqlType(), "Type");
         typeColumn.setCellValueFactory(CellValueFactory.create(TableRowEntry::getType));
-        typeColumn.setOnEditCommit(event -> event.getRowValue().setType(event.getNewValue()));
+//TODO        typeColumn.setOnEditCommit(event -> event.getRowValue().setType(event.getNewValue()));
         bindTableColumnWidth(typeColumn, this, 0.25);
 
         TableColumn<TableRowEntry, Boolean> partitionKeyColumn =
@@ -222,7 +223,7 @@ public class TableEditWidget extends Stage {
     }
 
     private TableRowEntry buildDefaultRow() {
-        return new TableRowEntry(UUID.randomUUID().toString(), DataType.Name.TEXT, false, false, false);
+        return new TableRowEntry(UUID.randomUUID().toString(), TypeCodecs.TEXT.getCqlType(), false, false, false);
     }
 
     private TextArea buildTableArea() {

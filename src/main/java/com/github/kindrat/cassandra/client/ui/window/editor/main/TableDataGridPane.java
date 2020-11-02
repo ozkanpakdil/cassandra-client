@@ -1,6 +1,6 @@
 package com.github.kindrat.cassandra.client.ui.window.editor.main;
 
-import com.datastax.driver.core.TableMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
 import com.github.kindrat.cassandra.client.service.TableContext;
 import com.github.kindrat.cassandra.client.ui.DataObject;
 import com.github.kindrat.cassandra.client.ui.keylistener.TableCellCopyHandler;

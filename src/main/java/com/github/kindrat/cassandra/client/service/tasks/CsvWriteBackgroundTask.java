@@ -1,7 +1,7 @@
 package com.github.kindrat.cassandra.client.service.tasks;
 
-import com.datastax.driver.core.ColumnMetadata;
-import com.datastax.driver.core.TableMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
 import com.github.kindrat.cassandra.client.model.CsvTargetMetadata;
 import com.github.kindrat.cassandra.client.service.CassandraClientAdapter;
 import com.github.kindrat.cassandra.client.service.TableContext;
@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 
 import static com.github.kindrat.cassandra.client.service.TableContext.fullTable;
 import static com.github.kindrat.cassandra.client.service.tasks.TaskState.ACTIVE;
+import static org.codehaus.groovy.runtime.DefaultGroovyMethods.collect;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -41,8 +42,8 @@ public class CsvWriteBackgroundTask extends AbstractTask {
                     long percentRows = Math.max(totalRows / 100, 1);
                     percentRows = Math.min(percentRows, Integer.MAX_VALUE);
                     AtomicLong processedRows = new AtomicLong();
-                    List<String> columns = tableMetadata.getColumns().stream()
-                            .map(ColumnMetadata::getName).collect(Collectors.toList());
+                    List<String> columns = tableMetadata.getColumns().values().stream()
+                            .map(ColumnMetadata::toString).collect(Collectors.toList());
                     CSVPrinter printer = getPrinter(columns);
                     TableContext tableContext = fullTable(metadata.getTable(), tableMetadata, clientAdapter, 3000);
                     return Flux.<CompletableFuture<ObservableList<DataObject>>>create(

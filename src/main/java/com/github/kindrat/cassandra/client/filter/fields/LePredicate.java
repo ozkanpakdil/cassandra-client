@@ -1,6 +1,6 @@
 package com.github.kindrat.cassandra.client.filter.fields;
 
-import com.datastax.driver.core.TypeCodec;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
 import com.github.kindrat.cassandra.client.ui.DataObject;
 
 public class LePredicate extends RowPredicate {

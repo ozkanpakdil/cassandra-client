@@ -1,7 +1,7 @@
 package com.github.kindrat.cassandra.client.filter.fields;
 
-import com.datastax.driver.core.CodecRegistry;
-import com.datastax.driver.core.TypeCodec;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
+import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.github.kindrat.cassandra.client.ui.DataObject;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +14,7 @@ import static lombok.AccessLevel.PROTECTED;
 @RequiredArgsConstructor
 public abstract class RowPredicate implements Predicate<DataObject> {
     @Getter(PROTECTED)
-    private static final CodecRegistry codecRegistry = new CodecRegistry();
+    private static final CodecRegistry codecRegistry = CodecRegistry.DEFAULT;
     private final String field;
     private final String value;
 

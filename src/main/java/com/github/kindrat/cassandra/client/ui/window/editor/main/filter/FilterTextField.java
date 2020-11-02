@@ -1,7 +1,7 @@
 package com.github.kindrat.cassandra.client.ui.window.editor.main.filter;
 
-import com.datastax.driver.core.ColumnMetadata;
-import com.datastax.driver.core.TableMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
 import com.github.kindrat.cassandra.client.filter.Combiner;
 import com.github.kindrat.cassandra.client.filter.Operator;
 import com.github.kindrat.cassandra.client.filter.condition.*;
@@ -46,7 +46,12 @@ public class FilterTextField extends TextField {
 
     public void setTableMetadata(TableMetadata metadata) {
         reset();
-        columnsByName = toMap(metadata.getColumns(), ColumnMetadata::getName);
+//        columnsByName = toMap(metadata.getColumns().entrySet(), ColumnMetadata::getName);
+        Map<String, ColumnMetadata> m=new HashMap<>();
+        metadata.getColumns().forEach((cqlIdentifier, tableMetadata) -> {
+            m.put(cqlIdentifier.asInternal(), tableMetadata);
+        });
+        columnsByName=m;
     }
 
     public void suggestCompletion() {

@@ -1,8 +1,7 @@
 package com.github.kindrat.cassandra.client.ui;
 
-import com.datastax.driver.core.AbstractTableMetadata;
-import com.datastax.driver.core.KeyspaceMetadata;
-import com.datastax.driver.core.TableMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
 import com.github.kindrat.cassandra.client.i18n.MessageByLocaleService;
 import com.github.kindrat.cassandra.client.service.BackgroundTaskExecutor;
 import com.github.kindrat.cassandra.client.service.CassandraClientAdapter;
@@ -166,7 +165,7 @@ public class MainController {
         clientAdapter.connect(connection)
                 .thenApply(CassandraAdminTemplate::getKeyspaceMetadata)
                 .thenApply(KeyspaceMetadata::getTables)
-                .thenApply(tables -> toMap(tables, AbstractTableMetadata::getName))
+                .thenApply(tables -> toMap(tables.values(), TableMetadata::toString))
                 .whenComplete(handleErrorIfPresent(this::printError))
                 .whenComplete((metadata, error) -> {
                     if (metadata != null) {
@@ -175,6 +174,9 @@ public class MainController {
                     }
                 });
     }
+
+//    private Object toMap(Map<CqlIdentifier, TableMetadata> tables, Object toString) {
+//    }
 
     private ObservableMap<KeyCombination, Runnable> getAccelerators() {
         return view.getPrimaryStage().getScene().getAccelerators();

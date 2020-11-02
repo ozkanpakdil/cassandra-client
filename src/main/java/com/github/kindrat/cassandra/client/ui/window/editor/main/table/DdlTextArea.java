@@ -1,6 +1,6 @@
 package com.github.kindrat.cassandra.client.ui.window.editor.main.table;
 
-import com.datastax.driver.core.TableMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
 import com.github.kindrat.cassandra.client.util.UIUtil;
 import javafx.scene.control.TextArea;
 import org.apache.commons.lang3.exception.ExceptionUtils;

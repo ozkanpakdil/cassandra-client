@@ -1,8 +1,16 @@
 package com.github.kindrat.cassandra.client.service;
 
-import com.datastax.driver.core.*;
+import com.datastax.oss.driver.api.core.cql.*;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
+import com.datastax.oss.driver.api.core.type.DataType;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
+import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
+import com.datastax.oss.driver.internal.core.type.PrimitiveType;
+import com.datastax.oss.driver.internal.core.util.concurrent.CompletableFutures;
+import com.datastax.oss.protocol.internal.ProtocolConstants;
 import com.github.kindrat.cassandra.client.ui.DataObject;
 import com.github.kindrat.cassandra.client.util.EvenMoreFutures;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -12,11 +20,13 @@ import lombok.Getter;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -44,7 +54,7 @@ public class TableContext {
     private volatile ResultSet resultSet;
 
     private TableContext(String table, String query, TableMetadata tableMetadata, CassandraClientAdapter clientAdapter,
-            int pageSize) {
+                         int pageSize) {
         this.table = table;
         this.tableMetadata = tableMetadata;
         this.clientAdapter = clientAdapter;
@@ -54,12 +64,12 @@ public class TableContext {
     }
 
     public static TableContext fullTable(String table, TableMetadata tableMetadata,
-            CassandraClientAdapter clientAdapter, int pageSize) {
+                                         CassandraClientAdapter clientAdapter, int pageSize) {
         return new TableContext(table, "select * from " + table, tableMetadata, clientAdapter, pageSize);
     }
 
     public static TableContext customView(String table, String query, TableMetadata tableMetadata,
-            CassandraClientAdapter clientAdapter, int pageSize) {
+                                          CassandraClientAdapter clientAdapter, int pageSize) {
         return new TableContext(table, query, tableMetadata, clientAdapter, pageSize);
     }
 
@@ -69,7 +79,7 @@ public class TableContext {
             return currentPage;
         }
         page++;
-        currentPage = toCompletable(resultSet.fetchMoreResults())
+        currentPage = toCompletable(Futures.immediateFuture(resultSet))
                 .thenApply(this::parseResultSet)
                 .thenApply(FXCollections::observableList);
         return currentPage;
@@ -82,7 +92,7 @@ public class TableContext {
 
     @Synchronized
     public boolean hasNextPage() {
-        return !resultSet.isExhausted();
+        return !resultSet.isFullyFetched();
     }
 
     @Synchronized
@@ -98,9 +108,8 @@ public class TableContext {
         Statement statement = getStatement();
         String rawPagingState = pagingStates.get(page);
         if (rawPagingState != null) {
-            PagingState pagingState = PagingState.fromString(rawPagingState);
             log.debug("Loading page {} with pagination state {}", page, rawPagingState);
-            statement.setPagingState(pagingState);
+            statement.setPagingState(ByteBuffer.wrap(rawPagingState.getBytes()));
         }
         return clientAdapter.executeStatement(statement)
                 .thenApply(result -> {
@@ -116,16 +125,16 @@ public class TableContext {
     }
 
     private Statement getStatement() {
-        Statement statement = new SimpleStatement(query);
-        statement.setFetchSize(pageSize);
-        return statement.enableTracing();
+        return SimpleStatement.builder(query)
+                .setPageSize(pageSize)
+                .setTracing(true).build();
     }
 
     private List<DataObject> parseResultSet(ResultSet resultSet) {
         AtomicInteger start = new AtomicInteger(pageSize * page);
         int availableWithoutFetching = resultSet.getAvailableWithoutFetching();
         int currentPageSize = Math.min(availableWithoutFetching, pageSize);
-        PagingState nextPageState = resultSet.getExecutionInfo().getPagingState();
+        var nextPageState = resultSet.getExecutionInfo().getPagingState();
         log.debug("Page {} size {}", page, currentPageSize);
         if (nextPageState != null) {
             String value = nextPageState.toString();
@@ -143,9 +152,9 @@ public class TableContext {
 
     private DataObject parseRow(int index, Row row) {
         DataObject dataObject = new DataObject(index);
-        for (ColumnDefinitions.Definition definition : row.getColumnDefinitions()) {
-            TypeCodec<Object> codec = CodecRegistry.DEFAULT_INSTANCE.codecFor(definition.getType());
-            dataObject.set(definition.getName(), row.get(definition.getName(), codec));
+        for (ColumnDefinition definition : row.getColumnDefinitions()) {
+            TypeCodec<Object> codec = CodecRegistry.DEFAULT.codecFor(definition.getType());
+            dataObject.set(definition.getName().asInternal(), row.get(definition.getName(), codec));
         }
         return dataObject;
     }
@@ -153,7 +162,8 @@ public class TableContext {
     private List<TableColumn<DataObject, Object>> buildColumns() {
         List<TableColumn<DataObject, Object>> columns = new ArrayList<>();
 
-        TableColumn<DataObject, Object> counterColumn = buildColumn(DataType.cint(), "#");
+        DataType intCol=new PrimitiveType(ProtocolConstants.DataType.INT);
+        TableColumn<DataObject, Object> counterColumn = buildColumn(intCol, "#");
         counterColumn.setCellValueFactory(param -> {
             Integer object = param.getValue().getPosition();
             return new SimpleObjectProperty<>(object);
@@ -162,11 +172,11 @@ public class TableContext {
 
         columns.add(counterColumn);
 
-        tableMetadata.getColumns().forEach(columnMetadata -> {
+        tableMetadata.getColumns().forEach((cqlIdentifier, columnMetadata) -> {
             DataType type = columnMetadata.getType();
-            TableColumn<DataObject, Object> column = buildColumn(type, columnMetadata.getName());
+            TableColumn<DataObject, Object> column = buildColumn(type, columnMetadata.getName().toString());
             column.setCellValueFactory(param -> {
-                Object object = param.getValue().get(columnMetadata.getName());
+                Object object = param.getValue().get(columnMetadata.getName().asInternal());
                 return new SimpleObjectProperty<>(object);
             });
             column.setOnEditCommit(event -> {
@@ -178,24 +188,23 @@ public class TableContext {
         return columns;
     }
 
-    private void printQueryTrace(int page, ListenableFuture<QueryTrace> listenableFuture) {
-        EvenMoreFutures.toCompletable(listenableFuture)
-                .whenCompleteAsync((trace, throwable) -> {
-                    if (trace != null) {
-                        log.info("Executed page {} query trace : [{}] " +
-                                        "\n\t started at {} and took {} μs " +
-                                        "\n\t coordinator {}" +
-                                        "\n\t request type {}" +
-                                        "\n\t parameters {}" +
-                                        "\n\t events",
-                                page, trace.getTraceId(), trace.getStartedAt(), trace.getDurationMicros(),
-                                trace.getCoordinator(), trace.getRequestType(), trace.getParameters(),
-                                trace.getEvents());
-                    }
-                    if (throwable != null) {
-                        log.error("Query trace could not be read", throwable);
-                    }
-                });
+    private void printQueryTrace(int page, CompletionStage<QueryTrace> listenableFuture) {
+        listenableFuture.whenCompleteAsync((trace, throwable) -> {
+            if (trace != null) {
+                log.info("Executed page {} query trace : [{}] " +
+                                "\n\t started at {} and took {} μs " +
+                                "\n\t coordinator {}" +
+                                "\n\t request type {}" +
+                                "\n\t parameters {}" +
+                                "\n\t events",
+                        page, trace.getTracingId(), trace.getStartedAt(), trace.getDurationMicros(),
+                        trace.getCoordinatorAddress().getAddress(), trace.getRequestType(), trace.getParameters(),
+                        trace.getEvents());
+            }
+            if (throwable != null) {
+                log.error("Query trace could not be read", throwable);
+            }
+        });
 
     }
 }

@@ -1,6 +1,6 @@
 package com.github.kindrat.cassandra.client.ui.widget.tableedit;
 
-import com.datastax.driver.core.DataType;
+import com.datastax.oss.driver.api.core.type.DataType;
 import com.github.kindrat.cassandra.client.util.CqlUtil;
 import org.apache.commons.lang3.StringUtils;
 
@@ -21,7 +21,7 @@ class ViewDataConverter {
     static {
         TABLE_PATTERN = Pattern.compile("(?i)(create table)(\\s+)(.*)(\\s+)(\\()([.\\s\\S]*)(\\))");
 
-        List<String> types = stream(DataType.Name.values()).map(Enum::toString).collect(Collectors.toList());
+        List<String> types = stream(DataTypeHere.Name.values()).map(Enum::toString).collect(Collectors.toList());
         String combinedTypePattern = String.join("|", types);
         ROW_PATTERN = Pattern.compile(format("(?i)([\"\\-0-9a-z]+)(\\s+)(%s)(\\s*)", combinedTypePattern));
 
@@ -75,7 +75,7 @@ class ViewDataConverter {
         if (matches) {
             String name = matcher.group(1);
             String type = matcher.group(3);
-            DataType.Name dataType = DataType.Name.valueOf(type.toUpperCase());
+            DataType dataType = (DataType) DataTypeHere.Name.valueOf(type.toUpperCase());
             return new TableRowEntry(name, dataType, false, false, false);
         } else {
             throw new IllegalStateException("Regex match should happens before");

@@ -1,5 +1,6 @@
 package com.github.kindrat.cassandra.client.ui.window.menu.about;
 
+import com.github.kindrat.cassandra.client.Java11Starter;
 import com.github.kindrat.cassandra.client.i18n.MessageByLocaleService;
 import com.github.kindrat.cassandra.client.properties.UIProperties;
 import javafx.scene.Scene;
@@ -28,7 +29,7 @@ public class AboutBox extends Stage {
     private Scene buildScene() {
         VBox aboutBox = new VBox(properties.getAboutBoxSpacing());
         Scene dialogScene = new Scene(aboutBox, properties.getAboutBoxWidth(), properties.getAboutBoxHeight());
-        Text text = new Text(localeService.getMessage("ui.menu.help.about.text"));
+        Text text = new Text(localeService.getMessage("ui.menu.help.about.text") + Java11Starter.driver);
         text.setTextAlignment(TextAlignment.CENTER);
         text.setWrappingWidth(properties.getAboutBoxWidth());
         aboutBox.getChildren().add(text);

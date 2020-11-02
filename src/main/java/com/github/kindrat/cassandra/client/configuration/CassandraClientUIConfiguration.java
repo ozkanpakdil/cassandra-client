@@ -27,6 +27,8 @@ import javafx.scene.control.MenuItem;
 import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.cassandra.CassandraProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -107,7 +109,12 @@ public class CassandraClientUIConfiguration {
         MenuItem manager = new MenuItem(localeService.getMessage("ui.menu.file.manager"));
         manager.setMnemonicParsing(false);
         manager.setOnAction(event -> connectionManager(clientAdapter::getAllKeyspaces));
-        file.getItems().addAll(connect, manager);
+
+        MenuItem exit = new MenuItem(localeService.getMessage("ui.menu.file.exit"));
+        exit.setMnemonicParsing(false);
+        exit.setOnAction(event -> System.exit(0));
+
+        file.getItems().addAll(connect, manager,exit);
         return file;
     }
 

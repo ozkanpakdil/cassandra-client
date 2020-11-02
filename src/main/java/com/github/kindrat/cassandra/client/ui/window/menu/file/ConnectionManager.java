@@ -1,6 +1,7 @@
 package com.github.kindrat.cassandra.client.ui.window.menu.file;
 
-import com.datastax.driver.core.TypeCodec;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodecs;
 import com.github.kindrat.cassandra.client.i18n.MessageByLocaleService;
 import com.github.kindrat.cassandra.client.properties.StorageProperties;
 import com.github.kindrat.cassandra.client.properties.UIProperties;
@@ -165,7 +166,7 @@ public class ConnectionManager extends Stage implements BeanFactoryAware {
             String> extractor) {
         TableColumn<ConnectionData, String> column = new TableColumn<>();
         Label columnLabel = new Label(name);
-        column.setCellFactory(CellFactory.create(TypeCodec.varchar()));
+        column.setCellFactory(CellFactory.create(TypeCodecs.TEXT));
 
         column.setCellValueFactory(param -> {
             String field = extractor.apply(param.getValue());

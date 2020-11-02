@@ -11,7 +11,8 @@
         <MenuBar fx:id="menu" prefHeight="29.0" prefWidth="876.0" AnchorPane.bottomAnchor="30.0"
                  AnchorPane.leftAnchor="0.0"
                  AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0"/>
-        <SplitPane fx:id="mainWindow" dividerPositions="0.29797979797979796" layoutX="-3.0" layoutY="27.0" prefHeight="528.0"
+        <SplitPane fx:id="mainWindow" dividerPositions="0.29797979797979796" layoutX="-3.0" layoutY="27.0"
+                   prefHeight="528.0"
                    prefWidth="876.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
                    AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="30.0">
             <items>

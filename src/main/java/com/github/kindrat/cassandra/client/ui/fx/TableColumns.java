@@ -1,8 +1,11 @@
 package com.github.kindrat.cassandra.client.ui.fx;
 
-import com.datastax.driver.core.CodecRegistry;
-import com.datastax.driver.core.DataType;
-import com.datastax.driver.core.TypeCodec;
+import com.datastax.oss.driver.api.core.type.DataType;
+import com.datastax.oss.driver.api.core.type.codec.TypeCodec;
+import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
+import com.datastax.oss.driver.internal.core.type.DataTypeHelper;
+import com.datastax.oss.driver.internal.core.type.PrimitiveType;
+import com.datastax.oss.protocol.internal.ProtocolConstants;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.value.ObservableValue;
@@ -28,9 +31,9 @@ public class TableColumns {
     public static <T> TableColumn<T, Object> buildColumn(DataType dataType, String labelText) {
         TableColumn<T, Object> tableColumn = new TableColumn<>();
         Label label = new Label(labelText);
-        label.setTooltip(new Tooltip(dataType.asFunctionParameterString()));
+        label.setTooltip(new Tooltip(dataType.toString()));
 
-        TypeCodec<Object> typeCodec = CodecRegistry.DEFAULT_INSTANCE.codecFor(dataType);
+        TypeCodec typeCodec = CodecRegistry.DEFAULT.codecFor(dataType);
         tableColumn.setCellFactory(CellFactory.create(typeCodec));
         tableColumn.setGraphic(label);
         tableColumn.setMinWidth(computeTextContainerWidth(label.getText(), label.getFont()));
